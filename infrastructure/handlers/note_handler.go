@@ -1,0 +1,155 @@
+package handlers
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"github.com/apirestgo/application/services"
+	"github.com/apirestgo/domain/entities"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
+)
+
+type NoteHandler struct {
+	service *services.NoteService
+}
+
+func NewNoteHandler(service *services.NoteService) *NoteHandler {
+	return &NoteHandler{service: service}
+}
+
+// GetNotes ahora usa *gin.Context
+func (h *NoteHandler) GetNotes(c *gin.Context) {
+	// Obtener el token del header Authorization
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		return
+	}
+
+	// Extraer el token (Bearer <token>)
+	tokenString := strings.Split(authHeader, " ")[1]
+
+	// Parsear el token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verificar que el token usa el algoritmo correcto
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte("mysecretkey"), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	// Obtener el user_id del token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+		return
+	}
+
+	userID := int(claims["user_id"].(float64)) // El user_id es un número en el JWT
+
+	// Obtener las notas del usuario
+	notes, err := h.service.GetNotes(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch notes"})
+		return
+	}
+
+	c.JSON(http.StatusOK, notes)
+}
+
+// CreateNote ahora usa *gin.Context
+func (h *NoteHandler) CreateNote(c *gin.Context) {
+	var note entities.Note
+	if err := c.ShouldBindJSON(&note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data"})
+		return
+	}
+
+	// Obtener el token del header Authorization
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		return
+	}
+
+	// Extraer el token (Bearer <token>)
+	tokenString := strings.Split(authHeader, " ")[1]
+
+	// Parsear el token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verificar que el token usa el algoritmo correcto
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte("mysecretkey"), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	// Obtener el user_id del token
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+		return
+	}
+
+	userID := int(claims["user_id"].(float64)) // El user_id es un número en el JWT
+
+	// Llamar a CreateNote con tres parámetros: userID, title y description
+	err = h.service.CreateNote(userID, note.Title, note.Description)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create note", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Note created"})
+}
+
+
+// UpdateNote ahora usa *gin.Context
+func (h *NoteHandler) UpdateNote(c *gin.Context) {
+	var note entities.Note
+	if err := c.ShouldBindJSON(&note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data"})
+		return
+	}
+	err := h.service.UpdateNote(&note) // Pasamos el puntero a la estructura Note
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update note"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Note updated"})
+}
+
+// DeleteNote ahora usa *gin.Context
+func (h *NoteHandler) DeleteNote(c *gin.Context) {
+	idStr := c.DefaultQuery("id", "") // Obtener el id como string desde la query
+	if idStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID is required"})
+		return
+	}
+
+	id, err := strconv.Atoi(idStr) // Convertir el id de string a int
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	err = h.service.DeleteNote(id) // Pasamos el id como int
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete note"})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, gin.H{"message": "Note deleted"})
+}
