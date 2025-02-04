@@ -24,14 +24,12 @@ func NewNoteRepository(db *sql.DB) NoteRepository {
 	return &noteRepository{db: db}
 }
 
-// Crear una nueva nota
 func (r *noteRepository) Create(note *entities.Note) error {
 	query := "INSERT INTO notes (title, description, user_id) VALUES (?, ?, ?)"
 	_, err := r.db.Exec(query, note.Title, note.Description, note.UserID)
 	return err
 }
 
-// Obtener todas las notas de un usuario sin el campo created_at
 func (r *noteRepository) GetByUserID(userID int) ([]entities.Note, error) {
 	rows, err := r.db.Query("SELECT id, title, description, user_id FROM notes WHERE user_id = ?", userID)
 	if err != nil {
@@ -58,7 +56,6 @@ func (r *noteRepository) GetByUserID(userID int) ([]entities.Note, error) {
 	return notes, nil
 }
 
-// Obtener una nota por su ID sin el campo created_at
 func (r *noteRepository) GetByID(id int) (*entities.Note, error) {
 	row := r.db.QueryRow("SELECT id, title, description, user_id FROM notes WHERE id = ?", id)
 	var note entities.Note
@@ -70,14 +67,12 @@ func (r *noteRepository) GetByID(id int) (*entities.Note, error) {
 	return &note, nil
 }
 
-// Actualizar una nota
 func (r *noteRepository) Update(note *entities.Note) error {
 	query := "UPDATE notes SET title = ?, description = ? WHERE id = ?"
 	_, err := r.db.Exec(query, note.Title, note.Description, note.ID)
 	return err
 }
 
-// Eliminar una nota
 func (r *noteRepository) Delete(id int) error {
 	_, err := r.db.Exec("DELETE FROM notes WHERE id = ?", id)
 	return err

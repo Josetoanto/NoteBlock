@@ -14,7 +14,6 @@ func NewUserHandler(service *services.UserService) *UserHandler {
     return &UserHandler{userService: service}
 }
 
-// Registrar usuario
 func (h *UserHandler) RegisterUser(c *gin.Context) {
     var user struct {
         Username string `json:"username"`

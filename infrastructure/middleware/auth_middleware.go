@@ -16,7 +16,6 @@ func AuthMiddleware() gin.HandlerFunc {
             return
         }
 
-        // Eliminar "Bearer " de la cadena
         tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
         claims := jwt.MapClaims{}
